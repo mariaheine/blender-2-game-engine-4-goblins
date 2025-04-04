@@ -34,6 +34,23 @@ class GLTFExportSettings(bpy.types.PropertyGroup):
         ],
         default='GLB'
     )
+    
+    export_target: bpy.props.EnumProperty(
+        name="Target",
+        description="Choose which meshes to export",
+        items=[
+            ('Selection', "Selected only", "Exports only selected meshes."),
+            ('Everything', "All of 'em", "Exports all meshes in the scene."),
+            ('Collection', "Collection", "Exports meshes within a target collection.")
+        ],
+        default='Selection'
+    )
+    
+    export_collection: bpy.props.PointerProperty(
+        name="Collection",
+        type=bpy.types.Collection,
+        description="Only export objects in this collection"
+    )
 
     auto_export_on_save: bpy.props.BoolProperty(
         name="Auto-Export on Save",
@@ -60,55 +77,53 @@ class Blender2UnityPanel(bpy.types.Panel):
         
         row = layout.row()
         
-        layout.label(text="Hello there goblin/angel (choose your class)")
+        layout.label(text="Hello there goblin/angel?")
         
-        layout.separator()  # Adds some spacing
+        settings = scene.gltf_export_settings
         
-        # Export Directory Path
-        layout.prop(scene.gltf_export_settings, "export_dir", icon='EXPORT')
+        layout.separator() # BASIC SETTINGS
         
-        # Dropdown for export format
-        layout.prop(scene.gltf_export_settings, "export_format", icon='SHADERFX') 
+        layout.prop(settings, "export_dir", icon='EXPORT') # Export Directory Path
+        layout.prop(settings, "export_format", icon='SHADERFX') # Dropdown for export format
         
-        layout.separator() 
-        layout.label(text="Tweaks:")
+        layout.separator() # WHAT TO EXPORT
         
+        layout.label(text="Which meshes to export:")
+        layout.prop(settings, "export_target", icon='SCENE_DATA')
         
-        # Toggle Auto Export
-        layout.prop(scene.gltf_export_settings, "auto_export_on_save", icon='RNA')  
+        if settings.export_target == 'Collection':
+            layout.prop(settings, "export_collection", icon='OUTLINER_COLLECTION')
         
-        #layout.row().label(text="---------" * 10, icon="INFO")
-        layout.separator()
+        layout.separator() # TWEAKS
+        
+        layout.label(text="Tweaks:")        
+        layout.prop(settings, "auto_export_on_save", icon='RNA') # Toggle Auto Export
+        
+        layout.separator() # GLTF SETTINGS
         
         if scene.gltf_export_settings.export_format != 'FBX':
             layout.label(text="GLTF/GLB Settings:")
-            # Export Textures
-            layout.prop(scene.gltf_export_settings, "export_textures", icon="TEXTURE")
+            layout.prop(settings, "export_textures", icon="TEXTURE") # Export Textures
+            layout.prop(settings, "apply_modifiers", icon='MODIFIER') # Apply Modifiers
             
-            # Apply Transforms Checkbox
-            layout.prop(scene.gltf_export_settings, "apply_modifiers", icon='MODIFIER')
             layout.separator()
         
+        collection_valid = settings.export_target != 'Collection' or settings.export_collection is not None
+        
         # Check if the export dir is empty and display a warning message
-        if not scene.gltf_export_settings.export_dir:
+        if not settings.export_dir:
             # Disable the export button
             layout.label(text="Can't export, need valid Export Dir.", icon='GHOST_DISABLED')
+        elif not collection_valid:
+            # gosh multilines, try this onetime: https://b3d.interplanety.org/en/multiline-text-in-blender-interface-panels/
+            layout.label(text="Can't export: No Collection selected.", icon='GHOST_DISABLED')
+            layout.label(text="Your export target is set to Collection.", icon='INFO')
+            layout.label(text="Set your target collection, please.", icon='INFO')
         else:                
             # Export Button
             row = layout.row()
             row.operator("export_scene.gltf_manual", text="Export!", icon='GHOST_ENABLED')
-        
-        #layout.separator()  # Adds spacing before the status box
-        # Display a message in a box
-        #if scene.gltf_export_settings.export_status:
-        #    # Add a box and display the message
-        #    box = layout.box()
-        #    box.label(text=scene.gltf_export_settings.export_status)
-        #else:
-        #    # If no status, display a placeholder
-        #    box = layout.box()
-        #    box.label(text="No export attempt made yet.")
-
+            
 
 class ExportGLTFOperator(bpy.types.Operator):
     """Export Selected Meshes to GLTF"""
@@ -156,14 +171,23 @@ def export_gltf(context):
     export_path = os.path.join(export_dir, blend_name + file_extension)
     
     
-    # Save current selection
-    selected_objects = [obj for obj in bpy.context.selected_objects]
-
-    # Select only mesh objects
-    bpy.ops.object.select_all(action='DESELECT')
-    for obj in bpy.data.objects:
-        if obj.type == 'MESH':
-            obj.select_set(True)
+    export_target = context.scene.gltf_export_settings.export_target
+    
+    if export_target != 'Selection':
+    
+        selected_objects = [obj for obj in bpy.context.selected_objects] # Save current selection
+        bpy.ops.object.select_all(action='DESELECT')
+        
+        if export_target == 'Everything':
+            for obj in bpy.data.objects:
+                if obj.type == 'MESH':
+                    obj.select_set(True)
+        elif export_target == 'Collection':
+            export_collection = context.scene.gltf_export_settings.export_collection
+            for obj in export_collection.all_objects:
+                if obj.type == 'MESH':
+                    obj.select_set(True)
+    
    
     # Export logic for each format
     if export_format in {'GLB', 'GLTF_SEPARATE'}:
@@ -190,11 +214,13 @@ def export_gltf(context):
     
     # If export is successful
     context.scene.gltf_export_settings.export_status = f"✅ Exported successfully to {export_path}"
-        
-    # Restore previous selection
-    bpy.ops.object.select_all(action='DESELECT')
-    for obj in selected_objects:
-        obj.select_set(True)
+    
+    if export_target != 'Selection':
+        # Restore previous selection
+        # When export target == 'Selection' there is no need to revert back to it, it was not overwritten.
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in selected_objects:
+            obj.select_set(True)
 
     print(f"✅ GLTF Exported to: {export_path}")
     
