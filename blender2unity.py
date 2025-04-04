@@ -1,6 +1,8 @@
 import bpy
 import os
 
+# icon references https://blenderartists.org/t/icon-reference-sheets-2-79-2-80/1162781
+
 class GLTFExportSettings(bpy.types.PropertyGroup):
     export_dir: bpy.props.StringProperty(
         name="Export Dir",
@@ -16,12 +18,18 @@ class GLTFExportSettings(bpy.types.PropertyGroup):
         default=False
     )
     
+    export_textures: bpy.props.BoolProperty(
+        name="Export Textures",
+        description="Include textures in the export. Works only for gltf & glb.",
+        default=False  # Textures are included by default
+    )
+    
     export_format: bpy.props.EnumProperty(
         name="Format",
         description="Choose export format",
         items=[
             ('GLB', "GLB (Binary)", "Exports a single .glb file"),
-            ('GLTF_SEPARATE', "GLTF + BIN", "Exports separate .gltf and .bin files"),
+            ('GLTF_SEPARATE', "GLTF + BIN (Recommended)", "Exports separate .gltf and .bin files"),
             ('FBX', "FBX", "Exports as .fbx bleh proprietary file format")
         ],
         default='GLTF_SEPARATE'
@@ -67,6 +75,9 @@ class Blender2UnityPanel(bpy.types.Panel):
         
         # Apply Transforms Checkbox
         layout.prop(scene.gltf_export_settings, "apply_transforms", icon='SCENE_DATA')
+        
+        # Export Textures
+        layout.prop(scene.gltf_export_settings, "export_textures", icon="TEXTURE")
         
         # Toggle Auto Export
         layout.prop(scene.gltf_export_settings, "auto_export_on_save", icon='RNA')  
@@ -127,6 +138,7 @@ def export_gltf(context):
 
     # Read the apply transforms setting from the UI
     apply_transforms = context.scene.gltf_export_settings.apply_transforms
+    export_textures = context.scene.gltf_export_settings.export_textures 
     
     # Export Path & Format
     export_format = context.scene.gltf_export_settings.export_format
@@ -151,12 +163,14 @@ def export_gltf(context):
    
     # Export logic for each format
     if export_format in {'GLB', 'GLTF_SEPARATE'}:
+        # https://docs.blender.org/api/current/bpy.ops.export_scene.html#bpy.ops.export_scene.gltf
         bpy.ops.export_scene.gltf(
             filepath=export_path,
             export_format=export_format,
             use_selection=True,
             export_apply=apply_transforms,
-            export_yup=True
+            export_yup=True,
+            export_image_format='AUTO' if export_textures else 'NONE'
         )
     elif export_format == 'FBX':
         bpy.ops.export_scene.fbx(
