@@ -12,9 +12,9 @@ class GLTFExportSettings(bpy.types.PropertyGroup):
         update=lambda self, context: context.area.tag_redraw()  # Force UI refresh
     )
     
-    apply_transforms: bpy.props.BoolProperty(
-        name="Apply Transforms",
-        description="Apply object transformations before exporting",
+    apply_modifiers: bpy.props.BoolProperty(
+        name="Apply Modifiers",
+        description="Apply modifiers (excluding Armatures) to mesh objects; WARNING: prevents exporting shape keys.",
         default=False
     )
     
@@ -28,17 +28,17 @@ class GLTFExportSettings(bpy.types.PropertyGroup):
         name="Format",
         description="Choose export format",
         items=[
-            ('GLB', "GLB (Binary)", "Exports a single .glb file"),
-            ('GLTF_SEPARATE', "GLTF + BIN (Recommended)", "Exports separate .gltf and .bin files"),
+            ('GLB', "GLB (Recommended)", "Exports a single .glb file"),
+            ('GLTF_SEPARATE', "GLTF + BIN", "Exports separate .gltf and .bin files"),
             ('FBX', "FBX", "Exports as .fbx bleh proprietary file format")
         ],
-        default='GLTF_SEPARATE'
+        default='GLB'
     )
 
     auto_export_on_save: bpy.props.BoolProperty(
         name="Auto-Export on Save",
         description="Automatically export when saving the .blend file",
-        default=True
+        default=False
     )
     
     export_status: bpy.props.StringProperty(
@@ -73,17 +73,21 @@ class Blender2UnityPanel(bpy.types.Panel):
         layout.separator() 
         layout.label(text="Tweaks:")
         
-        # Apply Transforms Checkbox
-        layout.prop(scene.gltf_export_settings, "apply_transforms", icon='SCENE_DATA')
-        
-        # Export Textures
-        layout.prop(scene.gltf_export_settings, "export_textures", icon="TEXTURE")
         
         # Toggle Auto Export
         layout.prop(scene.gltf_export_settings, "auto_export_on_save", icon='RNA')  
         
         #layout.row().label(text="---------" * 10, icon="INFO")
         layout.separator()
+        
+        if scene.gltf_export_settings.export_format != 'FBX':
+            layout.label(text="GLTF/GLB Settings:")
+            # Export Textures
+            layout.prop(scene.gltf_export_settings, "export_textures", icon="TEXTURE")
+            
+            # Apply Transforms Checkbox
+            layout.prop(scene.gltf_export_settings, "apply_modifiers", icon='MODIFIER')
+            layout.separator()
         
         # Check if the export dir is empty and display a warning message
         if not scene.gltf_export_settings.export_dir:
@@ -137,7 +141,7 @@ def export_gltf(context):
         os.makedirs(export_dir)
 
     # Read the apply transforms setting from the UI
-    apply_transforms = context.scene.gltf_export_settings.apply_transforms
+    apply_modifiers = context.scene.gltf_export_settings.apply_modifiers
     export_textures = context.scene.gltf_export_settings.export_textures 
     
     # Export Path & Format
@@ -168,7 +172,7 @@ def export_gltf(context):
             filepath=export_path,
             export_format=export_format,
             use_selection=True,
-            export_apply=apply_transforms,
+            export_apply=apply_modifiers,
             export_yup=True,
             export_image_format='AUTO' if export_textures else 'NONE'
         )
