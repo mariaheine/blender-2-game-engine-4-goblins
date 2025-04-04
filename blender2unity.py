@@ -3,9 +3,9 @@ import os
 
 class GLTFExportSettings(bpy.types.PropertyGroup):
     export_dir: bpy.props.StringProperty(
-        name="Export To",
+        name="Export Dir",
         description="🕊️ Directory where the GLTF file will be saved",
-        default="/path_where_export/",  # Default relative to blend file
+        default="",
         subtype='DIR_PATH',
         update=lambda self, context: context.area.tag_redraw()  # Force UI refresh
     )
@@ -32,6 +32,12 @@ class GLTFExportSettings(bpy.types.PropertyGroup):
         description="Automatically export when saving the .blend file",
         default=True
     )
+    
+    export_status: bpy.props.StringProperty(
+        name="Export Status",
+        description="Displays the result of the export process",
+        default=""  # Default empty, you will set this dynamically
+    )
 
 class Blender2UnityPanel(bpy.types.Panel):
     bl_label = "Unity Exporter 🕊️"
@@ -45,6 +51,8 @@ class Blender2UnityPanel(bpy.types.Panel):
         scene = context.scene
         
         row = layout.row()
+        
+        layout.label(text="Hello there goblin/angel (choose your class)")
         
         layout.separator()  # Adds some spacing
         
@@ -66,8 +74,25 @@ class Blender2UnityPanel(bpy.types.Panel):
         #layout.row().label(text="---------" * 10, icon="INFO")
         layout.separator()
         
-        row = layout.row()
-        row.operator("export_scene.gltf_manual", text="Export!", icon='GHOST_ENABLED')
+        # Check if the export dir is empty and display a warning message
+        if not scene.gltf_export_settings.export_dir:
+            # Disable the export button
+            layout.label(text="Can't export, need valid Export Dir.", icon='GHOST_DISABLED')
+        else:                
+            # Export Button
+            row = layout.row()
+            row.operator("export_scene.gltf_manual", text="Export!", icon='GHOST_ENABLED')
+        
+        #layout.separator()  # Adds spacing before the status box
+        # Display a message in a box
+        #if scene.gltf_export_settings.export_status:
+        #    # Add a box and display the message
+        #    box = layout.box()
+        #    box.label(text=scene.gltf_export_settings.export_status)
+        #else:
+        #    # If no status, display a placeholder
+        #    box = layout.box()
+        #    box.label(text="No export attempt made yet.")
 
 
 class ExportGLTFOperator(bpy.types.Operator):
@@ -84,6 +109,10 @@ class ExportGLTFOperator(bpy.types.Operator):
     
 # Function to export GLTF
 def export_gltf(context):
+    if not context.scene.gltf_export_settings.export_dir:
+        print("blender2unity errer: Export directory is not set! Skipping export.")
+        return
+    
     blend_filepath = bpy.data.filepath
     if not blend_filepath:
         print("❌ Save your .blend file first!")
@@ -139,6 +168,10 @@ def export_gltf(context):
             axis_forward='-Z',
             axis_up='Y'
         )
+        
+    
+    # If export is successful
+    context.scene.gltf_export_settings.export_status = f"✅ Exported successfully to {export_path}"
         
     # Restore previous selection
     bpy.ops.object.select_all(action='DESELECT')
