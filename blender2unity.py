@@ -3,7 +3,7 @@ import os
 
 class GLTFExportSettings(bpy.types.PropertyGroup):
     export_dir: bpy.props.StringProperty(
-        name="Export Dir",
+        name="Export To",
         description="🕊️ Directory where the GLTF file will be saved",
         default="/path_where_export/",  # Default relative to blend file
         subtype='DIR_PATH',
@@ -13,18 +13,24 @@ class GLTFExportSettings(bpy.types.PropertyGroup):
     apply_transforms: bpy.props.BoolProperty(
         name="Apply Transforms",
         description="Apply object transformations before exporting",
-        default=True  # Checked by default
+        default=False
     )
     
     export_format: bpy.props.EnumProperty(
-        name="Export Format",
+        name="Format",
         description="Choose export format",
         items=[
             ('GLB', "GLB (Binary)", "Exports a single .glb file"),
             ('GLTF_SEPARATE', "GLTF + BIN", "Exports separate .gltf and .bin files"),
             ('FBX', "FBX", "Exports as .fbx bleh proprietary file format")
         ],
-        default='GLTF_SEPARATE'  # Default to GLB
+        default='GLTF_SEPARATE'
+    )
+
+    auto_export_on_save: bpy.props.BoolProperty(
+        name="Auto-Export on Save",
+        description="Automatically export when saving the .blend file",
+        default=True
     )
 
 class Blender2UnityPanel(bpy.types.Panel):
@@ -38,24 +44,30 @@ class Blender2UnityPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         
-        # Simple button in the toolbar
         row = layout.row()
-        row.label(text="Hello from Blender Toolbar!")        
-
-
-        layout.label(text="Export Settings:")
+        
+        layout.separator()  # Adds some spacing
         
         # Export Directory Path
-        layout.prop(scene.gltf_export_settings, "export_dir")
-        
-        # Apply Transforms Checkbox
-        layout.prop(scene.gltf_export_settings, "apply_transforms")
+        layout.prop(scene.gltf_export_settings, "export_dir", icon='EXPORT')
         
         # Dropdown for export format
-        layout.prop(scene.gltf_export_settings, "export_format")  
+        layout.prop(scene.gltf_export_settings, "export_format", icon='SHADERFX') 
+        
+        layout.separator() 
+        layout.label(text="Tweaks:")
+        
+        # Apply Transforms Checkbox
+        layout.prop(scene.gltf_export_settings, "apply_transforms", icon='SCENE_DATA')
+        
+        # Toggle Auto Export
+        layout.prop(scene.gltf_export_settings, "auto_export_on_save", icon='RNA')  
+        
+        #layout.row().label(text="---------" * 10, icon="INFO")
+        layout.separator()
         
         row = layout.row()
-        row.operator("export_scene.gltf_manual", text="Export!")  # Just a simple button to quit Blender
+        row.operator("export_scene.gltf_manual", text="Export!", icon='GHOST_ENABLED')
 
 
 class ExportGLTFOperator(bpy.types.Operator):
@@ -90,14 +102,17 @@ def export_gltf(context):
     # Export Path & Format
     export_format = context.scene.gltf_export_settings.export_format
     
-    if export_format == 'GLB':
-        file_extension = ".glb"
-    elif export_format == 'GLTF_SEPARATE':
-        file_extension = ".gltf"
-    elif export_format == 'FBX':
-        file_extension = ".fbx"
+    file_extension = {
+        'GLB': ".glb",
+        'GLTF_SEPARATE': ".gltf",
+        'FBX': ".fbx"
+    }[export_format]
     
     export_path = os.path.join(export_dir, blend_name + file_extension)
+    
+    
+    # Save current selection
+    selected_objects = [obj for obj in bpy.context.selected_objects]
 
     # Select only mesh objects
     bpy.ops.object.select_all(action='DESELECT')
@@ -124,8 +139,17 @@ def export_gltf(context):
             axis_forward='-Z',
             axis_up='Y'
         )
+        
+    # Restore previous selection
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in selected_objects:
+        obj.select_set(True)
 
     print(f"✅ GLTF Exported to: {export_path}")
+    
+def auto_export_gltf(dummy):
+    if bpy.context.scene.gltf_export_settings.auto_export_on_save:
+        export_gltf(bpy.context)
     
 def register():
     bpy.utils.register_class(GLTFExportSettings)
@@ -133,6 +157,11 @@ def register():
     
     bpy.utils.register_class(Blender2UnityPanel)
     bpy.utils.register_class(ExportGLTFOperator)
+    
+    # Remove previous handlers to avoid duplicates
+    bpy.app.handlers.save_post[:] = [h for h in bpy.app.handlers.save_post if h.__name__ != "auto_export_gltf"]
+    
+    bpy.app.handlers.save_post.append(auto_export_gltf)
 
 def unregister():
     bpy.utils.unregister_class(GLTFExportSettings)
@@ -140,6 +169,8 @@ def unregister():
     
     bpy.utils.unregister_class(Blender2UnityPanel)
     bpy.utils.unregister_class(ExportGLTFOperator)
+    
+    bpy.app.handlers.save_post.remove(auto_export_gltf)
 
 if __name__ == "__main__":
     register()

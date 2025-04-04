@@ -84,7 +84,7 @@ def register():
     
     bpy.app.handlers.save_post.append(auto_export_gltf)
 
-def unregister():
+def unregister()
     bpy.utils.unregister_class(GLTFExportSettings)
     del bpy.types.Scene.gltf_export_settings
 
