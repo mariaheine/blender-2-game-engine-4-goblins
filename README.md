@@ -1,6 +1,8 @@
-# blender2unity
+# blender-2-unity-fast
 
-An exporting tool for blender to Unity that that allows auto-export whenever you save blender project.
+An exportiong tool for rapid prototyping in Blender for Unity.
+
+Please check out [Disclaimer](##Disclaimer) below.
 
 ![./preview.png](./preview.png)
 
@@ -36,3 +38,5 @@ It comes in a form of an n-toolbar menu.
 
 ## Disclaimer
 I'm mostly a C# programmer, so this plugin was made unter chatty's (ChatGPT) guide, it was a trial and error process, I learned a bunch about python and blender scripting, so it is an altogether fun ride and I am also happy with the results and can finally abandon ProBuilder for good.
+
+Taking that into consideration this is by no means a professional battle-proven addon, might slowly grow into one, mostly a tool to rapidly prototype simple environments in blender to see changes almost instantly reflected unity in a possibly seamless way.
