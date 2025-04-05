@@ -41,7 +41,7 @@ class GLTFExportSettings(bpy.types.PropertyGroup):
         items=[
             ('Selection', "Selected only", "Exports only selected meshes."),
             ('Everything', "All of 'em", "Exports all meshes in the scene."),
-            ('Collection', "Collection", "Exports meshes within a target collection.")
+            ('Collection', "Collection", "Exports meshes that are children of a target collection.")
         ],
         default='Selection'
     )
@@ -49,7 +49,7 @@ class GLTFExportSettings(bpy.types.PropertyGroup):
     export_collection: bpy.props.PointerProperty(
         name="Collection",
         type=bpy.types.Collection,
-        description="Only export objects in this collection"
+        description="All children meshes of this collection will be exported."
     )
 
     auto_export_on_save: bpy.props.BoolProperty(
@@ -128,9 +128,11 @@ class ExportGLTFOperator(bpy.types.Operator):
     bl_idname = "export_scene.gltf_manual"
     bl_label = "Export GLTF"
 
+    """
     # This is the core of the operator. It contains the code that runs when the operator is invoked. 
     # The return value should be {'FINISHED'} when the operation completes successfully. 
     # If there is an error, you can return {'CANCELLED'}.
+    """
     def execute(self, context):
         export_gltf(context)
         return {'FINISHED'}
