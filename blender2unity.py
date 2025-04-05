@@ -75,8 +75,6 @@ class Blender2UnityPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         
-        row = layout.row()
-        
         layout.label(text="Hello there goblin/angel?")
         
         settings = scene.gltf_export_settings
@@ -249,5 +247,16 @@ def unregister():
     
     bpy.app.handlers.save_post.remove(auto_export_gltf)
 
+""" chatty explains
+🧠 What does __name__ == "__main__" mean?
+
+When a Python script is run directly (e.g. you press "Run Script" in Blender's Text Editor or run it via command line), 
+Python sets a special built-in variable called __name__ to "__main__".
+
+But when the same script is imported as a module into another script, __name__ will instead be set to the name of the 
+file (like "blender2unity" or similar).
+
+TLDR; "Only call register() if this script is being run directly, not if it's being imported by something else."
+"""
 if __name__ == "__main__":
     register()
