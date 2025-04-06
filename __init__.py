@@ -1,16 +1,24 @@
 import bpy
 
 """
-# Ensure we're pointing to the right directory for import
-addon_directory = os.path.dirname(__file__)  # Gets the directory where __init__.py is located
-sys.path.append(addon_directory)  # Adds that directory to the import path
+🧩 Common Blender Naming Suffixes
+Suffix	Meaning	Example
+OT_	Operator	MYADDON_OT_export_gltf
+PT_	Panel	MYADDON_PT_export_ui
+MT_	Menu	MYADDON_MT_custom_menu
+HT_	Header	MYADDON_HT_view3d_header
+UL_	UI List	MYADDON_UL_custom_ui_list
+PR_	PropertyGroup (less common)	MYADDON_PR_export_settings
 
-if "blender2unity" in locals():
-    importlib.reload(blender2unity)
-else:
-    importlib.import_module('blender2unity')
+🍰 kimjafasu_ / KIMJAFASU_ as a unique prefix 
+Basically a sigil from Kimja's Blender Fast To Unity
 """
+from . import utils
 from .blender2unity import ExportSettings, ExportMessage, Blender2UnityPanel, ExportOperator, auto_export_gltf
+
+modules = [
+  utils
+]
 
 classes = (
     ExportMessage,
@@ -20,6 +28,9 @@ classes = (
 )
     
 def register():
+    for mod in modules:
+        mod.register()
+        
     for cls in classes:
         bpy.utils.register_class(cls)
         
@@ -32,6 +43,9 @@ def register():
     bpy.app.handlers.save_post.append(auto_export_gltf)
 
 def unregister():
+    for mod in reversed(modules):
+        mod.unregister()
+        
     for cls in classes:
         bpy.utils.unregister_class(cls)
         

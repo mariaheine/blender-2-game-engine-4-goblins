@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 
-id = "kimjas_blender_2_unity_fast"
+id = "kimjafasu"
 version = "1.0.0"
 name = "blender-2-unity-fast"
 tagline = "An exporting tool for rapid prototyping in Blender for Unity"

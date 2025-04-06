@@ -2,6 +2,9 @@ import bpy
 import os
 from datetime import datetime
 
+# ⚔️ Remember to import local modules like that!
+from . import utils
+
 """
 AI Disclaimer & Excuses
 
@@ -150,48 +153,6 @@ class Blender2UnityPanel(bpy.types.Panel):
                     'NEWLINE': 'ADD'
                 }.get(msg.level, 'INFO')
                 box.label(text=msg.text, icon=icon)
-
-# gosh multilines, why so hard, try this onetime: https://b3d.interplanety.org/en/multiline-text-in-blender-interface-panels/
-def log_message(self, text, level='INFO'):
-    now = datetime.now().strftime("%H:%M:%S")
-    text = f"[{now}] {text}"
-    
-    console_print(text, level)
-    
-    lines = []
-    if(len(text)) > 50:
-        lines = split_message(text, 50)
-    else:
-        lines.append(text)
-    
-    for index, line in enumerate(lines):
-        msg = self.messages.add()
-        msg.text = line
-        if index != 0:
-            level = 'NEWLINE'
-        msg.level = level
-    
-def console_print(text, level):
-    if level == 'INFO':
-      prefix = f"🕊️  [INFO @{__name__}]"
-    elif level == 'WARNING':
-      prefix = f"⚔️  [WARNING @{__name__}"
-    elif level == 'ERROR':
-      prefix = f"🔥 [ERROR @{__name__}]"
-    else:
-      prefix = ""
-    print(f"{prefix} {text}")
-    
-def split_message(message, max_length=50):
-    lines = []
-    while len(message) > max_length:
-        split_point = message.rfind(" ", 0, max_length)
-        if split_point == -1:
-            split_point = max_length
-        lines.append(message[:split_point])
-        message = message[split_point:].lstrip()
-    lines.append(message)
-    return lines
             
 def get_export_errors(settings):
     errors = []
@@ -203,12 +164,6 @@ def get_export_errors(settings):
     if settings.export_target == 'Collection' and not settings.export_collection:
         errors.append("Export target is 'Collection', but no collection is selected.")
     return errors
-  
-def refresh_ui():
-    for window in bpy.context.window_manager.windows:
-        for area in window.screen.areas:
-            if area.type == 'VIEW_3D':  # or 'PROPERTIES', etc.
-                area.tag_redraw()
   
 class ExportOperator(bpy.types.Operator):
     """Export Selected Meshes to GLTF"""
@@ -231,20 +186,17 @@ def safe_export(context):
     try:
         export_gltf(bpy.context, settings)
     except Exception as e:
-        log_message(settings, f"Export failed: {e}.", 'ERROR')
+        utils.kimjafasu_log_message(settings, f"Export failed: {e}.", 'ERROR')
         
-    refresh_ui()
+    utils.kimjafasu_refresh_ui()
 
 def auto_export_gltf(dummy):
     settings = bpy.context.scene.gltf_export_settings
     if settings.auto_export_on_save:
         safe_export(bpy.context)
         
-# Function to export GLTF
 def export_gltf(context, settings):
-    
     errors = get_export_errors(settings)
-    
     if errors:
         for error in errors:
             msg = settings.messages.add()
@@ -274,11 +226,21 @@ def export_gltf(context, settings):
     
     export_path = os.path.join(export_dir, blend_name + file_extension)
     
+    # Save currently selected objects
+    selected_objects = [obj for obj in context.selected_objects] 
+    
+    # Active object mode before exporting
+    # https://docs.blender.org/api/current/bpy_types_enum_items/object_mode_items.html#rna-enum-object-mode-items
+    original_mode = bpy.context.object.mode
+    
+    # Switch to Object mode if not already in it
+    if original_mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+        
     export_target = settings.export_target
     
     if export_target != 'Selection':
     
-        selected_objects = [obj for obj in bpy.context.selected_objects] # Save current selection
         bpy.ops.object.select_all(action='DESELECT')
         
         if export_target == 'Everything':
@@ -290,7 +252,6 @@ def export_gltf(context, settings):
             for obj in export_collection.all_objects:
                 if obj.type == 'MESH':
                     obj.select_set(True)
-    
    
     # Export logic for each format
     if export_format in {'GLB', 'GLTF_SEPARATE'}:
@@ -309,23 +270,26 @@ def export_gltf(context, settings):
             use_selection=True,
             apply_unit_scale=True,
             apply_scale_options='FBX_SCALE_UNITS',
-            bake_space_transform=True if apply_transforms else False,
+            # rework this, give an option
+            # bake_space_transform=True if apply_modifiers else False,
+            bake_space_transform=False,
             axis_forward='-Z',
             axis_up='Y'
         )
-        
     
-    # If export is successful
-    # settings.export_status = f"✅ Exported successfully to {export_path}"
-    
+    # Restore previous object selection
     if export_target != 'Selection':
-        # Restore previous selection
-        # When export target == 'Selection' there is no need to revert back to it, it was not overwritten.
         bpy.ops.object.select_all(action='DESELECT')
         for obj in selected_objects:
             obj.select_set(True)
-
-    print(f"✅ GLTF Exported to: {export_path}")
+        
+    # Restore original mode
+    if original_mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode=original_mode)
+    
+    utils.kimjafasu_log_message(
+      settings, 
+      f"Successfuly exported {export_target} to {export_path}")
     
 
         
