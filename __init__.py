@@ -10,9 +10,10 @@ if "blender2unity" in locals():
 else:
     importlib.import_module('blender2unity')
 """
-from .blender2unity import ExportSettings, Blender2UnityPanel, ExportOperator, auto_export_gltf
+from .blender2unity import ExportSettings, ExportMessage, Blender2UnityPanel, ExportOperator, auto_export_gltf
 
 classes = (
+    ExportMessage,
     ExportSettings,
     Blender2UnityPanel,
     ExportOperator,
