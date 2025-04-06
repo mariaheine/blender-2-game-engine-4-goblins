@@ -1,30 +1,44 @@
 import bpy
 import os
 
-# icon references https://blenderartists.org/t/icon-reference-sheets-2-79-2-80/1162781
+"""
+AI Disclaimer & Excuses
 
-class GLTFExportSettings(bpy.types.PropertyGroup):
-    export_dir: bpy.props.StringProperty(
-        name="Export Dir",
+I'm mostly a C# programmer, so this plugin was made unter chatty's (ChatGPT) guide, 
+it was a trial and error process, I learned a bunch about python and blender scripting, 
+so it is an altogether fun ride and I am also happy with the results and can finally 
+abandon ProBuilder for good.
+
+Taking that into consideration this is by no means a professional battle-proven addon, 
+might slowly grow into one, mostly a tool to rapidly prototype simple environments in 
+blender to see changes almost instantly reflected unity in a possibly seamless way.
+
+There are a bunch of code comments that explain to myself for future what some of 
+the things do, I hope this is not too clumsy!
+"""
+
+class ExportSettings(bpy.types.PropertyGroup):
+    export_dir : bpy.props.StringProperty(
+        name="Export Dirrr",
         description="🕊️ Directory where the GLTF file will be saved",
         default="",
         subtype='DIR_PATH',
         update=lambda self, context: context.area.tag_redraw()  # Force UI refresh
-    )
+    ) # type: ignore
     
-    apply_modifiers: bpy.props.BoolProperty(
+    apply_modifiers : bpy.props.BoolProperty(
         name="Apply Modifiers",
         description="Apply modifiers (excluding Armatures) to mesh objects; WARNING: prevents exporting shape keys.",
         default=False
-    )
+    ) # type: ignore
     
-    export_textures: bpy.props.BoolProperty(
+    export_textures : bpy.props.BoolProperty(
         name="Export Textures",
         description="Include textures in the export. Works only for gltf & glb.",
-        default=False  # Textures are included by default
-    )
+        default=False
+    ) # type: ignore
     
-    export_format: bpy.props.EnumProperty(
+    export_format : bpy.props.EnumProperty(
         name="Format",
         description="Choose export format",
         items=[
@@ -32,10 +46,11 @@ class GLTFExportSettings(bpy.types.PropertyGroup):
             ('GLTF_SEPARATE', "GLTF + BIN", "Exports separate .gltf and .bin files"),
             ('FBX', "FBX", "Exports as .fbx bleh proprietary file format")
         ],
-        default='GLB'
-    )
+        default='GLB',
+        update=lambda self, context: context.area.tag_redraw()  # Force UI refresh
+    ) # type: ignore
     
-    export_target: bpy.props.EnumProperty(
+    export_target : bpy.props.EnumProperty(
         name="Target",
         description="Choose which meshes to export",
         items=[
@@ -44,24 +59,24 @@ class GLTFExportSettings(bpy.types.PropertyGroup):
             ('Collection', "Collection", "Exports meshes that are children of a target collection.")
         ],
         default='Selection'
-    )
+    ) # type: ignore
     
-    export_collection: bpy.props.PointerProperty(
+    export_collection : bpy.props.PointerProperty(
         name="Collection",
         type=bpy.types.Collection,
         description="All children meshes of this collection will be exported."
-    )
+    ) # type: ignore
 
-    auto_export_on_save: bpy.props.BoolProperty(
+    auto_export_on_save : bpy.props.BoolProperty(
         name="Auto-Export on Save",
         description="Automatically export when saving the .blend file",
         default=False
-    )
+    ) # type: ignore
     
-    export_status: bpy.props.StringProperty(
+    export_status = bpy.props.StringProperty(
         name="Export Status",
         description="Displays the result of the export process",
-        default=""  # Default empty, you will set this dynamically
+        default=""
     )
 
 class Blender2UnityPanel(bpy.types.Panel):
@@ -69,26 +84,24 @@ class Blender2UnityPanel(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_unity_exporter"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = '🕊️ Uni Exp'  # The name of the tab where the panel will appear
+    bl_category = '🕊️ Uni Exp'
     
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        
-        layout.label(text="Hello there goblin/angel?")
-        
         settings = scene.gltf_export_settings
         
+        layout.label(text="Hello there goblin/angel?")
         layout.separator() # BASIC SETTINGS
         
         layout.prop(settings, "export_dir", icon='EXPORT') # Export Directory Path
         layout.prop(settings, "export_format", icon='SHADERFX') # Dropdown for export format
         
         layout.separator() # WHAT TO EXPORT
-        
         layout.label(text="Which meshes to export:")
-        layout.prop(settings, "export_target", icon='SCENE_DATA')
         
+        layout.prop(settings, "export_target", icon='SCENE_DATA')
+
         if settings.export_target == 'Collection':
             layout.prop(settings, "export_collection", icon='OUTLINER_COLLECTION')
         
@@ -103,7 +116,6 @@ class Blender2UnityPanel(bpy.types.Panel):
             layout.label(text="GLTF/GLB Settings:")
             layout.prop(settings, "export_textures", icon="TEXTURE") # Export Textures
             layout.prop(settings, "apply_modifiers", icon='MODIFIER') # Apply Modifiers
-            
             layout.separator()
         
         collection_valid = settings.export_target != 'Collection' or settings.export_collection is not None
@@ -113,7 +125,7 @@ class Blender2UnityPanel(bpy.types.Panel):
             # Disable the export button
             layout.label(text="Can't export, need valid Export Dir.", icon='GHOST_DISABLED')
         elif not collection_valid:
-            # gosh multilines, try this onetime: https://b3d.interplanety.org/en/multiline-text-in-blender-interface-panels/
+            # gosh multilines, why so hard, try this onetime: https://b3d.interplanety.org/en/multiline-text-in-blender-interface-panels/
             layout.label(text="Can't export: No Collection selected.", icon='GHOST_DISABLED')
             layout.label(text="Your export target is set to Collection.", icon='INFO')
             layout.label(text="Set your target collection, please.", icon='INFO')
@@ -123,7 +135,7 @@ class Blender2UnityPanel(bpy.types.Panel):
             row.operator("export_scene.gltf_manual", text="Export!", icon='GHOST_ENABLED')
             
 
-class ExportGLTFOperator(bpy.types.Operator):
+class ExportOperator(bpy.types.Operator):
     """Export Selected Meshes to GLTF"""
     bl_idname = "export_scene.gltf_manual"
     bl_label = "Export GLTF"
@@ -169,7 +181,6 @@ def export_gltf(context):
     }[export_format]
     
     export_path = os.path.join(export_dir, blend_name + file_extension)
-    
     
     export_target = context.scene.gltf_export_settings.export_target
     
@@ -227,38 +238,3 @@ def export_gltf(context):
 def auto_export_gltf(dummy):
     if bpy.context.scene.gltf_export_settings.auto_export_on_save:
         export_gltf(bpy.context)
-    
-def register():
-    bpy.utils.register_class(GLTFExportSettings)
-    bpy.types.Scene.gltf_export_settings = bpy.props.PointerProperty(type=GLTFExportSettings)
-    
-    bpy.utils.register_class(Blender2UnityPanel)
-    bpy.utils.register_class(ExportGLTFOperator)
-    
-    # Remove previous handlers to avoid duplicates
-    bpy.app.handlers.save_post[:] = [h for h in bpy.app.handlers.save_post if h.__name__ != "auto_export_gltf"]
-    
-    bpy.app.handlers.save_post.append(auto_export_gltf)
-
-def unregister():
-    bpy.utils.unregister_class(GLTFExportSettings)
-    del bpy.types.Scene.gltf_export_settings
-    
-    bpy.utils.unregister_class(Blender2UnityPanel)
-    bpy.utils.unregister_class(ExportGLTFOperator)
-    
-    bpy.app.handlers.save_post.remove(auto_export_gltf)
-
-""" chatty explains
-🧠 What does __name__ == "__main__" mean?
-
-When a Python script is run directly (e.g. you press "Run Script" in Blender's Text Editor or run it via command line), 
-Python sets a special built-in variable called __name__ to "__main__".
-
-But when the same script is imported as a module into another script, __name__ will instead be set to the name of the 
-file (like "blender2unity" or similar).
-
-TLDR; "Only call register() if this script is being run directly, not if it's being imported by something else."
-"""
-if __name__ == "__main__":
-    register()
