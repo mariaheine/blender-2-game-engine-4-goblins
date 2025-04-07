@@ -51,3 +51,5 @@ I'm mostly a C# programmer, so this plugin was made unter chatty's (ChatGPT) gui
 Taking that into consideration this is by no means a professional battle-proven addon, might slowly grow into one, mostly a tool to rapidly prototype simple environments in blender to see changes almost instantly reflected unity in a possibly seamless way.
 
 There are a bunch of code comments that explain to myself for future what some of the things do, I hope this is not too clumsy!
+
+Used theme: https://extensions.blender.org/themes/alien-pink-theme/
