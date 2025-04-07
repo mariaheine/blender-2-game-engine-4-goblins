@@ -72,8 +72,8 @@ class ExportSettings(bpy.types.PropertyGroup):
         description="Choose which meshes to export",
         items=[
             ('Selection', "Selected only", "Exports only selected meshes."),
-            ('Everything', "All of 'em", "Exports all meshes in the scene."),
-            ('Collection', "Collection", "Exports meshes that are children of a target collection.")
+            ('Everything', "All of 'em!", "Exports all meshes in the scene."),
+            ('Collection', "Collection", "Exports only the meshes that are children of a target collection.")
         ],
         default='Selection'
     ) # type: ignore
@@ -161,6 +161,10 @@ def get_export_errors(settings):
         errors.append("Save your .blend file first!")
     if not settings.export_dir:
         errors.append("Can't export, need valid Export Dir.")
+    if settings.export_target == 'Selection':
+        has_any_mesh_selected = any(obj.type =='MESH' for obj in bpy.context.selected_objects)
+        if not has_any_mesh_selected:
+            errors.append("Export target is 'Selection', but not a single mesh is selected.")
     if settings.export_target == 'Collection' and not settings.export_collection:
         errors.append("Export target is 'Collection', but no collection is selected.")
     return errors
@@ -197,11 +201,11 @@ def auto_export_gltf(dummy):
         
 def export_gltf(context, settings):
     errors = get_export_errors(settings)
+    
     if errors:
         for error in errors:
-            msg = settings.messages.add()
-            msg.text = error
-            msg.level = 'WARNING'
+            utils.logging.kimjafasu_log_message(settings, error, 'WARNING')
+        return
     
     blend_filepath = bpy.data.filepath
     blend_name = os.path.splitext(os.path.basename(blend_filepath))[0]
@@ -231,8 +235,25 @@ def export_gltf(context, settings):
     
     # Active object mode before exporting
     # https://docs.blender.org/api/current/bpy_types_enum_items/object_mode_items.html#rna-enum-object-mode-items
-    original_mode = bpy.context.object.mode
+    """
+    bpy.context.active_object: the last selected, 'active' object 
+    bpy.context.selected_objects: all currently selected object
     
+    bpy.context.active_object is equal to bpy.context.object (in most cases)
+    
+    using active_object is safer cos:
+    
+    "[...] during some modal operators or 
+    when you're inside non-3D View editors, bpy.context.object might return 
+    None, even though bpy.context.active_object still works."
+    """
+    active_object = bpy.context.active_object
+    if active_object:
+        original_mode = active_object.mode
+    else: 
+        # If no object is selected, default to Object Mode
+        original_mode = 'OBJECT'
+      
     # Switch to Object mode if not already in it
     if original_mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')

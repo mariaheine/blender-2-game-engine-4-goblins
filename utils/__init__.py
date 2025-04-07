@@ -6,7 +6,6 @@ from .ui_common import (
 )
 from .logging import (
   kimjafasu_log_message,
-  kimjafasu_console_print
 )
 
 def register():

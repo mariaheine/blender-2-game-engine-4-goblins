@@ -6,7 +6,8 @@ def kimjafasu_log_message(self, text, level='INFO'):
     now = datetime.now().strftime("%H:%M:%S")
     text = f"[{now}] {text}"
     
-    kimjafasu_console_print(text, level)
+    text = kimjafasu_format_log(text, level)
+    print(text)
     
     lines = []
     if(len(text)) > 50:
@@ -21,13 +22,13 @@ def kimjafasu_log_message(self, text, level='INFO'):
             level = 'NEWLINE'
         msg.level = level
         
-def kimjafasu_console_print(text, level):
+def kimjafasu_format_log(text, level):
     if level == 'INFO':
-      prefix = f"🕊️  [INFO @{__name__}]"
+      prefix = f"🕊️  [INFO]"
     elif level == 'WARNING':
-      prefix = f"⚔️  [WARNING @{__name__}"
+      prefix = f"⚔️  [WARNING]"
     elif level == 'ERROR':
-      prefix = f"🔥 [ERROR @{__name__}]"
+      prefix = f"🔥 [ERROR]"
     else:
       prefix = ""
-    print(f"{prefix} {text}")
+    return f"{prefix} {text}"
