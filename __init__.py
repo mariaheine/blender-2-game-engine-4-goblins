@@ -14,7 +14,7 @@ PR_	PropertyGroup (less common)	MYADDON_PR_export_settings
 Basically a sigil from Kimja's Blender Fast To Unity
 """
 from . import utils
-from .blender2unity import ExportSettings, ExportMessage, Blender2UnityPanel, ExportOperator, auto_export_gltf
+from .blender2game import ExportSettings, ExportMessage, Blender2UnityPanel, ExportOperator, auto_export_gltf
 
 modules = [
   utils
