@@ -61,7 +61,6 @@ class ExportSettings(bpy.types.PropertyGroup):
         items=[
             ('GLB', "GLB (Recommended)", "Exports a single .glb file"),
             ('GLTF_SEPARATE', "GLTF + BIN", "Exports separate .gltf and .bin files"),
-            ('FBX', "FBX", "Exports as .fbx bleh proprietary file format")
         ],
         default='GLB',
         update=lambda self, context: context.area.tag_redraw()  # Force UI refresh
@@ -225,7 +224,6 @@ def export_gltf(context, settings):
     file_extension = {
         'GLB': ".glb",
         'GLTF_SEPARATE': ".gltf",
-        'FBX': ".fbx"
     }[export_format]
     
     export_path = os.path.join(export_dir, blend_name + file_extension)
@@ -274,29 +272,16 @@ def export_gltf(context, settings):
                 if obj.type == 'MESH':
                     obj.select_set(True)
    
-    # Export logic for each format
-    if export_format in {'GLB', 'GLTF_SEPARATE'}:
         # https://docs.blender.org/api/current/bpy.ops.export_scene.html#bpy.ops.export_scene.gltf
-        bpy.ops.export_scene.gltf(
-            filepath=export_path,
-            export_format=export_format,
-            use_selection=True,
-            export_apply=apply_modifiers,
-            export_yup=True,
-            export_image_format='AUTO' if export_textures else 'NONE'
-        )
-    elif export_format == 'FBX':
-        bpy.ops.export_scene.fbx(
-            filepath=export_path,
-            use_selection=True,
-            apply_unit_scale=True,
-            apply_scale_options='FBX_SCALE_UNITS',
-            # rework this, give an option
-            # bake_space_transform=True if apply_modifiers else False,
-            bake_space_transform=False,
-            axis_forward='-Z',
-            axis_up='Y'
-        )
+    bpy.ops.export_scene.gltf(
+        filepath=export_path,
+        export_format=export_format,
+        use_selection=True,
+        export_apply=apply_modifiers,
+        export_yup=True,
+        export_image_format='AUTO' if export_textures else 'NONE'
+    )
+
     
     # Restore previous object selection
     if export_target != 'Selection':
