@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 
-id = "kimjafasu"
+id = "blender2game4goblins"
 version = "1.1.0"
 name = "blender-2-game-engine-4-goblins"
 tagline = "An auto glTF export tool for syncing Blender with game engines"
