@@ -52,6 +52,7 @@ def unregister():
     del bpy.types.Scene.gltf_export_settings
     
     print([h.__name__ for h in bpy.app.handlers.save_post])
+    
     if auto_export_gltf in bpy.app.handlers.save_post:
       bpy.app.handlers.save_post.remove(auto_export_gltf)
 

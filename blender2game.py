@@ -66,14 +66,16 @@ class ExportSettings(bpy.types.PropertyGroup):
         update=lambda self, context: context.area.tag_redraw()  # Force UI refresh
     ) # type: ignore
     
-    engine_orientation : bpy.props.EnumProperty(
+    engine : bpy.props.EnumProperty(
         name="Engine",
         description="Choose your target Game Engine",
         items=[
-            ('YUP', "Unity / Godot (Y-up)", "Y-up."),
-            ('ZUP', "Unreal (Z-up)", "Z-up"),
+            ('Unity', "Unity (Y-Up)", ""),
+            ('Godot', "Godot (Y-up)", ""),
+            ('Unreal', "Unreal (Z-up)", ""),
+            ('Procreate', "Procreate (Y-up)", "Not really a game engine I know, but if u like to paint models there like me, then this tool might also be useful, it overrdes export format to .obj since that is the only .")
         ],
-        default='YUP',
+        default='Unity',
         update=lambda self, context: context.area.tag_redraw()  # Force UI refresh
     ) # type: ignore
     
@@ -102,7 +104,7 @@ class ExportSettings(bpy.types.PropertyGroup):
     
     messages : bpy.props.CollectionProperty(type=ExportMessage) # type: ignore
 
-# https://blenderartists.org/t/icon-reference-sheets-2-79-2-80/1162781
+# Icons ref: https://blenderartists.org/t/icon-reference-sheets-2-79-2-80/1162781
 class Blender2UnityPanel(bpy.types.Panel):
     bl_label = "Universal Game Exporter 🕊️"
     bl_idname = "VIEW3D_PT_unity_exporter"
@@ -120,7 +122,7 @@ class Blender2UnityPanel(bpy.types.Panel):
         
         layout.prop(settings, "export_dir", icon='EXPORT') # Export Directory Path
         layout.prop(settings, "export_format", icon='SHADERFX') # Dropdown for export format
-        layout.prop(settings, "engine_orientation", icon='SYSTEM')
+        layout.prop(settings, "engine", icon='SYSTEM')
         
         layout.separator() # WHAT TO EXPORT
         layout.label(text="Which meshes to export:")
@@ -191,12 +193,13 @@ class ExportOperator(bpy.types.Operator):
     If there is an error, you can return {'CANCELLED'}.
     """
     def execute(self, context):
-        safe_export(context)
+        safe_export(context, "Button pressed, manual export.")
         return {'FINISHED'}
 
-def safe_export(context):
+def safe_export(context, message):
     settings = context.scene.gltf_export_settings
     settings.messages.clear() # Clear previous messages
+    utils.kimjafasu_log_message(settings, message, "INFO")
     
     try:
         export_gltf(bpy.context, settings)
@@ -208,7 +211,7 @@ def safe_export(context):
 def auto_export_gltf(dummy):
     settings = bpy.context.scene.gltf_export_settings
     if settings.auto_export_on_save:
-        safe_export(bpy.context)
+        safe_export(bpy.context, "Project saved, auto exporting.")
         
 def export_gltf(context, settings):
     errors = get_export_errors(settings)
@@ -231,12 +234,15 @@ def export_gltf(context, settings):
     export_textures = settings.export_textures 
     
     # Export Path & Format
-    export_format = settings.export_format
+    gltf_export_format = settings.export_format
     
-    file_extension = {
-        'GLB': ".glb",
-        'GLTF_SEPARATE': ".gltf",
-    }[export_format]
+    if (settings.engine != "Procreate"):
+        file_extension = {
+            'GLB': ".glb",
+            'GLTF_SEPARATE': ".gltf",
+        }[gltf_export_format]
+    else:
+        file_extension = ".obj"
     
     export_path = os.path.join(export_dir, blend_name + file_extension)
     
@@ -284,17 +290,30 @@ def export_gltf(context, settings):
                 if obj.type == 'MESH':
                     obj.select_set(True)
    
-    # https://docs.blender.org/api/current/bpy.ops.export_scene.html#bpy.ops.export_scene.gltf
-    export_yup = True if settings.engine_orientation == 'YUP' else False
-    utils.kimjafasu_log_message(settings, f"Exporting {export_yup}")
-    bpy.ops.export_scene.gltf(
-        filepath=export_path,
-        export_format=export_format,
-        use_selection=True,
-        export_apply=apply_modifiers,
-        export_yup=export_yup,
-        export_image_format='AUTO' if export_textures else 'NONE'
-    )
+    export_yup = False if settings.engine == 'Unreal' else True
+
+    # A little override for procreate, everything else exported with gltf
+    if (settings.engine == 'Procreate'):
+        bpy.ops.wm.obj_export(
+            filepath=export_path,
+            check_existing=False,
+            export_selected_objects=True,
+            apply_modifiers=apply_modifiers,
+            export_triangulated_mesh=True,
+            export_materials=True,
+            forward_axis='NEGATIVE_Z',
+            up_axis='Y'
+        )
+    else:
+        # https://docs.blender.org/api/current/bpy.ops.export_scene.html#bpy.ops.export_scene.gltf
+        bpy.ops.export_scene.gltf(
+            filepath=export_path,
+            export_format=gltf_export_format,
+            use_selection=True,
+            export_apply=apply_modifiers,
+            export_yup=export_yup,
+            export_image_format='AUTO' if export_textures else 'NONE'
+        )
 
     
     # Restore previous object selection
