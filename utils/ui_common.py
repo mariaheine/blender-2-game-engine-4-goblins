@@ -6,7 +6,7 @@ def kimjafasu_refresh_ui():
             if area.type == 'VIEW_3D':  # or 'PROPERTIES', etc.
                 area.tag_redraw()
                 
-def kimjafasu_split_text(text, max_length=50):
+def kimjafasu_split_text(text, max_length=40):
     lines = []
     while len(text) > max_length:
         split_point = text.rfind(" ", 0, max_length)

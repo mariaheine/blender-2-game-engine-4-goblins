@@ -34,7 +34,20 @@ class ExportMessage(bpy.types.PropertyGroup):
         default='INFO'
     ) # type: ignore
     
+class SectionToggles(bpy.types.PropertyGroup):
+    where_export: bpy.props.BoolProperty(name="Basics first", default=True)  # type: ignore
+    what_export: bpy.props.BoolProperty(name="What to export", default=False)  # type: ignore
+    show_gltf_settings: bpy.props.BoolProperty(name="GLTF/GLB settings", default=False)  # type: ignore
+    show_logs: bpy.props.BoolProperty(name="Logs", default=False)  # type: ignore
+    
 class ExportSettings(bpy.types.PropertyGroup):
+    messages : bpy.props.CollectionProperty(type=ExportMessage) # type: ignore
+    
+    selection_toggles : bpy.props.PointerProperty(
+        name="Selection Toggles",
+        type=SectionToggles
+    ) # type: ignore
+    
     export_dir : bpy.props.StringProperty(
         name="Export Dir",
         description="🕊️ Directory where the GLTF file will be saved",
@@ -79,15 +92,34 @@ class ExportSettings(bpy.types.PropertyGroup):
         update=lambda self, context: context.area.tag_redraw()  # Force UI refresh
     ) # type: ignore
     
+    use_simple_mode : bpy.props.BoolProperty(
+      name="Simple Export Selection",
+      description="Choose between a simple export selection, where all objects selected for export will be put into one file or an ability to set specialized export groups.",
+      default=True
+    ) # type: ignore
+    
+    use_project_name : bpy.props.BoolProperty(
+      name="Use .blend project filename",
+      description="Will use the same filename for the exported object as the current .blend project name.",
+      default=True
+    ) # type: ignore
+    
+    simple_export_filename : bpy.props.StringProperty(
+        name="Filename",
+        description="Filename for the exported model",
+        default="",
+        subtype='FILE_NAME',
+    ) # type: ignore
+    
     export_target : bpy.props.EnumProperty(
         name="Target",
         description="Choose which meshes to export",
         items=[
             ('Selection', "Selected only", "Exports only selected meshes."),
-            ('Everything', "All of 'em!", "Exports all meshes in the scene."),
+            ('Everything', "All meshes in the scene", "Exports all meshes in the scene."),
             ('Collection', "Collection", "Exports only the meshes that are children of a target collection.")
         ],
-        default='Selection'
+        default='Everything'
     ) # type: ignore
     
     export_collection : bpy.props.PointerProperty(
@@ -102,7 +134,6 @@ class ExportSettings(bpy.types.PropertyGroup):
         default=False
     ) # type: ignore
     
-    messages : bpy.props.CollectionProperty(type=ExportMessage) # type: ignore
 
 # Icons ref: https://blenderartists.org/t/icon-reference-sheets-2-79-2-80/1162781
 class Blender2UnityPanel(bpy.types.Panel):
@@ -116,33 +147,63 @@ class Blender2UnityPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         settings = scene.gltf_export_settings
+        toggles = settings.selection_toggles
         
         layout.label(text="Hello there goblin/angel!")
         layout.separator() # BASIC SETTINGS
         
-        layout.prop(settings, "export_dir", icon='EXPORT') # Export Directory Path
-        layout.prop(settings, "export_format", icon='SHADERFX') # Dropdown for export format
-        layout.prop(settings, "engine", icon='SYSTEM')
+        layout.prop(toggles, "where_export", icon="TRIA_DOWN" if toggles.where_export else "TRIA_RIGHT", emboss=False)
+        if toggles.where_export:
+            layout.prop(settings, "export_dir", icon='EXPORT') # Export Directory Path
+            
+            layout.prop(settings, "export_format", icon='SHADERFX') # Dropdown for export format
+            layout.prop(settings, "engine", icon='SYSTEM')
         
         layout.separator() # WHAT TO EXPORT
-        layout.label(text="Which meshes to export:")
         
-        layout.prop(settings, "export_target", icon='SCENE_DATA')
+        layout.prop(toggles, "what_export", icon="TRIA_DOWN" if toggles.what_export else "TRIA_RIGHT", emboss=False)
+        if toggles.what_export:
+            box = layout.box()
+            box.prop(settings, "use_simple_mode", icon='MESH_MONKEY')
+            if (settings.use_simple_mode):
+                box.prop(settings, "use_project_name")
+                if (settings.use_project_name == False):
+                    box.prop(settings, "simple_export_filename", icon='COPY_ID')
+                box.label(text="What gets exported:", icon='SCENE_DATA')
+                box.prop(settings, "export_target")
 
-        if settings.export_target == 'Collection':
-            layout.prop(settings, "export_collection", icon='OUTLINER_COLLECTION')
-        
-        layout.separator() # TWEAKS
-        
-        layout.label(text="Tweaks:")        
-        layout.prop(settings, "auto_export_on_save", icon='RNA') # Toggle Auto Export
-        
+                if settings.export_target == 'Collection':
+                    box.prop(settings, "export_collection", icon='OUTLINER_COLLECTION')
+            else:                
+                box.label(text="Not yet implemented")
+            
         layout.separator() # GLTF SETTINGS
-    
-        layout.label(text="GLTF/GLB Settings:")
-        layout.prop(settings, "export_textures", icon="TEXTURE") # Export Textures
-        layout.prop(settings, "apply_modifiers", icon='MODIFIER') # Apply Modifiers
+        
+        layout.prop(toggles, "show_gltf_settings", icon="TRIA_DOWN" if toggles.show_gltf_settings else "TRIA_RIGHT", emboss=False)
+        if toggles.show_gltf_settings:
+            box = layout.box()
+            box.prop(settings, "export_textures", icon="TEXTURE") # Export Textures
+            box.prop(settings, "apply_modifiers", icon='MODIFIER') # Apply Modifiers
         layout.separator()
+        
+        layout.prop(toggles, "show_logs", icon="TRIA_DOWN" if toggles.show_logs else "TRIA_RIGHT", emboss=False)
+        if toggles.show_logs:
+            if settings.messages:
+                box = layout.box()
+                box.label(text="Latest export status:")
+                
+                for msg in settings.messages:
+                    icon = {
+                        'INFO': 'INFO',
+                        'WARNING': 'ERROR',  # Blender doesn't have a WARNING icon
+                        'ERROR': 'CANCEL',
+                        'NEWLINE': 'BLANK1'
+                    }.get(msg.level, 'INFO')
+                    box.label(text=msg.text, icon=icon)
+        
+        layout.separator()
+              
+        layout.prop(settings, "auto_export_on_save", icon='RNA') # Toggle Auto Export
         
         errors = get_export_errors(settings)
 
@@ -150,22 +211,9 @@ class Blender2UnityPanel(bpy.types.Panel):
             for msg in errors:
                 layout.label(text=msg, icon='ERROR')
         else:
-            layout.operator("export_scene.gltf_manual", text="Export!", icon='GHOST_ENABLED')
+            if (settings.auto_export_on_save == False):
+                layout.operator("export_scene.gltf_manual", text="Manual Export", icon='GHOST_ENABLED')
         
-        layout.separator()
-        
-        if settings.messages:
-            box = layout.box()
-            box.label(text="Latest export status:")
-            
-            for msg in settings.messages:
-                icon = {
-                    'INFO': 'INFO',
-                    'WARNING': 'ERROR',  # Blender doesn't have a WARNING icon
-                    'ERROR': 'CANCEL',
-                    'NEWLINE': 'ADD'
-                }.get(msg.level, 'INFO')
-                box.label(text=msg.text, icon=icon)
             
 def get_export_errors(settings):
     errors = []
@@ -174,6 +222,8 @@ def get_export_errors(settings):
         errors.append("Save your .blend file first!")
     if not settings.export_dir:
         errors.append("Can't export, need valid Export Dir.")
+    if not settings.use_project_name and not settings.simple_export_filename:
+        errors.append("Please set an export filename.")
     if settings.export_target == 'Selection':
         has_any_mesh_selected = any(obj.type =='MESH' for obj in bpy.context.selected_objects)
         if not has_any_mesh_selected:
@@ -193,7 +243,7 @@ class ExportOperator(bpy.types.Operator):
     If there is an error, you can return {'CANCELLED'}.
     """
     def execute(self, context):
-        safe_export(context, "Button pressed, manual export.")
+        safe_export(context, "Manual Export")
         return {'FINISHED'}
 
 def safe_export(context, message):
@@ -211,7 +261,7 @@ def safe_export(context, message):
 def auto_export_gltf(dummy):
     settings = bpy.context.scene.gltf_export_settings
     if settings.auto_export_on_save:
-        safe_export(bpy.context, "Project saved, auto exporting.")
+        safe_export(bpy.context, "Auto Export")
         
 def export_gltf(context, settings):
     errors = get_export_errors(settings)
@@ -221,8 +271,13 @@ def export_gltf(context, settings):
             utils.logging.kimjafasu_log_message(settings, error, 'WARNING')
         return
     
-    blend_filepath = bpy.data.filepath
-    blend_name = os.path.splitext(os.path.basename(blend_filepath))[0]
+    if (settings.use_project_name):
+        blend_filepath = bpy.data.filepath
+        blend_name = os.path.splitext(os.path.basename(blend_filepath))[0]
+        filename = blend_name
+    else:
+        filename = settings.simple_export_filename
+        
     export_dir = bpy.path.abspath(settings.export_dir)
 
     # Ensure export directory exists
@@ -244,7 +299,7 @@ def export_gltf(context, settings):
     else:
         file_extension = ".obj"
     
-    export_path = os.path.join(export_dir, blend_name + file_extension)
+    export_path = os.path.join(export_dir, filename + file_extension)
     
     # Save currently selected objects
     selected_objects = [obj for obj in context.selected_objects] 

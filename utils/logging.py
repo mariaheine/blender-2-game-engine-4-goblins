@@ -10,8 +10,8 @@ def kimjafasu_log_message(self, text, level='INFO'):
     print(text)
     
     lines = []
-    if(len(text)) > 50:
-        lines = kimjafasu_split_text(text, 50)
+    if(len(text)) > 45:
+        lines = kimjafasu_split_text(text, 45)
     else:
         lines.append(text)
     
