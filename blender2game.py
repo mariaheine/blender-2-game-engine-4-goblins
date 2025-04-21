@@ -271,16 +271,18 @@ def export_gltf(context, settings):
             utils.logging.kimjafasu_log_message(settings, error, 'WARNING')
         return
     
+    # Filename
     if (settings.use_project_name):
         blend_filepath = bpy.data.filepath
         blend_name = os.path.splitext(os.path.basename(blend_filepath))[0]
         filename = blend_name
     else:
         filename = settings.simple_export_filename
-        
+    
+    # Export location
     export_dir = bpy.path.abspath(settings.export_dir)
 
-    # Ensure export directory exists
+    # Making sure it exists
     if not os.path.exists(export_dir):
         os.makedirs(export_dir)
 
@@ -337,12 +339,12 @@ def export_gltf(context, settings):
         
         if export_target == 'Everything':
             for obj in bpy.data.objects:
-                if obj.type == 'MESH':
+                if obj.type in {'MESH', 'ARMATURE'}:
                     obj.select_set(True)
         elif export_target == 'Collection':
             export_collection = settings.export_collection
             for obj in export_collection.all_objects:
-                if obj.type == 'MESH':
+                if obj.type in {'MESH', 'ARMATURE'}:
                     obj.select_set(True)
    
     export_yup = False if settings.engine == 'Unreal' else True
@@ -355,6 +357,7 @@ def export_gltf(context, settings):
             export_selected_objects=True,
             apply_modifiers=apply_modifiers,
             export_triangulated_mesh=True,
+            export_object_groups=True,
             export_materials=True,
             forward_axis='NEGATIVE_Z',
             up_axis='Y'
@@ -363,10 +366,18 @@ def export_gltf(context, settings):
         # https://docs.blender.org/api/current/bpy.ops.export_scene.html#bpy.ops.export_scene.gltf
         bpy.ops.export_scene.gltf(
             filepath=export_path,
-            export_format=gltf_export_format,
+            # basics
             use_selection=True,
-            export_apply=apply_modifiers,
             export_yup=export_yup,
+            export_apply=apply_modifiers,
+            export_format=gltf_export_format,
+            # animation
+            export_skins=True,
+            export_animations=True,
+            # comptession
+            # requires com.unity.draco
+            # export_draco_mesh_compression_enable=True,
+            # textures
             export_image_format='AUTO' if export_textures else 'NONE'
         )
 
