@@ -14,17 +14,22 @@ PR_	PropertyGroup (less common)	MYADDON_PR_export_settings
 Basically a sigil from Kimja's Blender Fast To Unity
 """
 from . import utils
-from .blender2game import ExportMessage, SectionToggles, ExportSettings, Blender2UnityPanel, ExportOperator, auto_export_gltf
+from . import preprocess
+from . import properties
+from . import ui_panel
+
+from .blender2game import ExportOperator, auto_export_gltf
 
 modules = [
-  utils
+  utils,
+  preprocess
 ]
 
 classes = (
-    ExportMessage,
-    SectionToggles,
-    ExportSettings,
-    Blender2UnityPanel,
+    properties.ExportMessage,
+    properties.SectionToggles,
+    properties.ExportSettings,
+    ui_panel.Blender2UnityPanel,
     ExportOperator,
 )
     
@@ -35,7 +40,7 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
         
-    bpy.types.Scene.gltf_export_settings = bpy.props.PointerProperty(type=ExportSettings)
+    bpy.types.Scene.gltf_export_settings = bpy.props.PointerProperty(type=properties.ExportSettings)
     
     # Remove previous handlers to avoid duplicates
     bpy.app.handlers.save_post[:] = [h for h in bpy.app.handlers.save_post if h.__name__ != "auto_export_gltf"]
