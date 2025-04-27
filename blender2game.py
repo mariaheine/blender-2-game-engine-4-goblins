@@ -30,15 +30,15 @@ class ExportMessage(bpy.types.PropertyGroup):
             ('WARNING', "Warning", ""),
             ('ERROR', "Error", ""),
             ('NEWLINE', "New Line", "")
-        ],
+        ], 
         default='INFO'
     ) # type: ignore
     
 class SectionToggles(bpy.types.PropertyGroup):
-    where_export: bpy.props.BoolProperty(name="Basics first", default=True)  # type: ignore
-    what_export: bpy.props.BoolProperty(name="What to export", default=False)  # type: ignore
-    show_gltf_settings: bpy.props.BoolProperty(name="GLTF/GLB settings", default=False)  # type: ignore
-    show_logs: bpy.props.BoolProperty(name="Logs", default=False)  # type: ignore
+    basics_foldout: bpy.props.BoolProperty(name="Basics first", default=True)  # type: ignore
+    what_export_foldout: bpy.props.BoolProperty(name="What to export", default=False)  # type: ignore
+    gltf_settings_foldout: bpy.props.BoolProperty(name="GLTF/GLB settings", default=False)  # type: ignore
+    show_logs_foldout: bpy.props.BoolProperty(name="Logs", default=False)  # type: ignore
     
 class ExportSettings(bpy.types.PropertyGroup):
     messages : bpy.props.CollectionProperty(type=ExportMessage) # type: ignore
@@ -60,6 +60,18 @@ class ExportSettings(bpy.types.PropertyGroup):
         name="Apply Modifiers",
         description="Apply modifiers (excluding Armatures) to mesh objects; WARNING: prevents exporting shape keys.",
         default=False
+    ) # type: ignore
+    
+    export_vertex_color : bpy.props.EnumProperty(
+        name="Vert Col",
+        description="If and how to export vertex color.",
+        items=[
+            ('MATERIAL', "Material", "Export vertex color when used by material."),
+            ('ACTIVE', "All", "Export all mesh vertex color data. Even when no material is set."),
+            ('NONE', "None", "Do not export vertex color."),
+        ],
+        default='ACTIVE',
+        update=lambda self, context: context.area.tag_redraw()  # Force UI refresh
     ) # type: ignore
     
     export_textures : bpy.props.BoolProperty(
@@ -152,8 +164,8 @@ class Blender2UnityPanel(bpy.types.Panel):
         layout.label(text="Hello there goblin/angel!")
         layout.separator() # BASIC SETTINGS
         
-        layout.prop(toggles, "where_export", icon="TRIA_DOWN" if toggles.where_export else "TRIA_RIGHT", emboss=False)
-        if toggles.where_export:
+        layout.prop(toggles, "basics_foldout", icon="TRIA_DOWN" if toggles.basics_foldout else "TRIA_RIGHT", emboss=False)
+        if toggles.basics_foldout:
             layout.prop(settings, "export_dir", icon='EXPORT') # Export Directory Path
             
             layout.prop(settings, "export_format", icon='SHADERFX') # Dropdown for export format
@@ -161,8 +173,8 @@ class Blender2UnityPanel(bpy.types.Panel):
         
         layout.separator() # WHAT TO EXPORT
         
-        layout.prop(toggles, "what_export", icon="TRIA_DOWN" if toggles.what_export else "TRIA_RIGHT", emboss=False)
-        if toggles.what_export:
+        layout.prop(toggles, "what_export_foldout", icon="TRIA_DOWN" if toggles.what_export_foldout else "TRIA_RIGHT", emboss=False)
+        if toggles.what_export_foldout:
             box = layout.box()
             box.prop(settings, "use_simple_mode", icon='MESH_MONKEY')
             if (settings.use_simple_mode):
@@ -179,15 +191,16 @@ class Blender2UnityPanel(bpy.types.Panel):
             
         layout.separator() # GLTF SETTINGS
         
-        layout.prop(toggles, "show_gltf_settings", icon="TRIA_DOWN" if toggles.show_gltf_settings else "TRIA_RIGHT", emboss=False)
-        if toggles.show_gltf_settings:
+        layout.prop(toggles, "gltf_settings_foldout", icon="TRIA_DOWN" if toggles.gltf_settings_foldout else "TRIA_RIGHT", emboss=False)
+        if toggles.gltf_settings_foldout:
             box = layout.box()
             box.prop(settings, "export_textures", icon="TEXTURE") # Export Textures
             box.prop(settings, "apply_modifiers", icon='MODIFIER') # Apply Modifiers
+            box.prop(settings, "export_vertex_color", icon='VPAINT_HLT') # Dropdown for export format
         layout.separator()
         
-        layout.prop(toggles, "show_logs", icon="TRIA_DOWN" if toggles.show_logs else "TRIA_RIGHT", emboss=False)
-        if toggles.show_logs:
+        layout.prop(toggles, "show_logs_foldout", icon="TRIA_DOWN" if toggles.show_logs_foldout else "TRIA_RIGHT", emboss=False)
+        if toggles.show_logs_foldout:
             if settings.messages:
                 box = layout.box()
                 box.label(text="Latest export status:")
@@ -288,7 +301,8 @@ def export_gltf(context, settings):
 
     # Read the apply transforms setting from the UI
     apply_modifiers = settings.apply_modifiers
-    export_textures = settings.export_textures 
+    export_textures = settings.export_textures
+    export_vertex_color = settings.export_vertex_color
     
     # Export Path & Format
     gltf_export_format = settings.export_format
@@ -374,6 +388,10 @@ def export_gltf(context, settings):
             # animation
             export_skins=True,
             export_animations=True,
+            # vertex color
+            export_vertex_color=export_vertex_color,
+            export_all_vertex_colors=True,
+            export_active_vertex_color_when_no_material=True,
             # comptession
             # requires com.unity.draco
             # export_draco_mesh_compression_enable=True,
@@ -395,7 +413,3 @@ def export_gltf(context, settings):
     utils.kimjafasu_log_message(
       settings, 
       f"Successfuly exported {export_target} to {export_path}")
-    
-
-        
-        
