@@ -75,13 +75,14 @@ def export_gltf(context, settings):
     # Making sure it exists
     if not os.path.exists(export_dir):
         os.makedirs(export_dir)
-
-    # Read the apply transforms setting from the UI
+        
+    # 🪶 Neat oneliners    
     apply_modifiers = settings.apply_modifiers
     export_textures = settings.export_textures
     export_vertex_color = settings.export_vertex_color
+    export_yup = False if settings.engine == 'Unreal' else True
     
-    # Export Path & Format
+    # 🪶 Export Path & Format
     gltf_export_format = settings.export_format
     
     if (settings.engine != "Procreate"):
@@ -94,8 +95,8 @@ def export_gltf(context, settings):
     
     export_path = os.path.join(export_dir, filename + file_extension)
     
-    # Save currently selected objects
-    selected_objects = [obj for obj in context.selected_objects] 
+    # 🪶 Save pre-export selection and mode
+    # In order to later return to that state
     
     # Active object mode before exporting
     # https://docs.blender.org/api/current/bpy_types_enum_items/object_mode_items.html#rna-enum-object-mode-items
@@ -111,6 +112,7 @@ def export_gltf(context, settings):
     when you're inside non-3D View editors, bpy.context.object might return 
     None, even though bpy.context.active_object still works."
     """
+    selected_objects = [obj for obj in context.selected_objects] 
     active_object = bpy.context.active_object
     if active_object:
         original_mode = active_object.mode
@@ -118,7 +120,7 @@ def export_gltf(context, settings):
         # If no object is selected, default to Object Mode
         original_mode = 'OBJECT'
       
-    # Switch to Object mode if not already in it
+    # 🪶 Switch to Object mode if not already in it
     if original_mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')
         
@@ -139,10 +141,25 @@ def export_gltf(context, settings):
                     obj.select_set(True)
     
     objects_to_be_exported = [obj for obj in context.selected_objects]
-    temp_objects = preprocess.kimjafasu_preprocess_split_vertex_groups(bpy.context, objects_to_be_exported)
+    split_objects, new_objects = preprocess.kimjafasu_preprocess_split_vertex_groups(bpy.context, objects_to_be_exported)
    
-    export_yup = False if settings.engine == 'Unreal' else True
+    # Combine original and split objects
+    # Convert to sets, subtract, then combine
+    # Now you can create the final export list:
+    final_objects = [obj for obj in objects_to_be_exported if obj not in split_objects] + new_objects
+    print("✨")
+    bpy.ops.object.select_all(action='DESELECT')
 
+    # Select all final objects
+    for obj in final_objects:
+        obj.select_set(True)
+
+    # Set one of them (e.g., the first one) as active
+    if final_objects:
+        context.view_layer.objects.active = final_objects[0]
+
+    # 🪶 Finally export.
+    
     # A little override for procreate, everything else exported with gltf
     if (settings.engine == 'Procreate'):
         bpy.ops.wm.obj_export(
@@ -179,9 +196,9 @@ def export_gltf(context, settings):
             export_image_format='AUTO' if export_textures else 'NONE'
         )
         
-    preprocess.kimjafasu_postprocess_cleanup(temp_objects)
+    preprocess.kimjafasu_postprocess_cleanup(new_objects)
     
-    # Restore previous object selection
+    # 🪶 Restore previous object selection
     if export_target != 'Selection':
         bpy.ops.object.select_all(action='DESELECT')
         for obj in selected_objects:
