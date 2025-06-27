@@ -16,3 +16,14 @@ def kimjafasu_get_export_errors(settings):
     if settings.export_target == 'Collection' and not settings.export_collection:
         errors.append("Export target is 'Collection', but no collection is selected.")
     return errors
+  
+def kimjafasu_cleanup_after(export_target, original_selected_objects, original_mode):
+  # 🪶 Restore previous object selection
+      if export_target != 'Selection':
+          bpy.ops.object.select_all(action='DESELECT')
+          for obj in original_selected_objects:
+              obj.select_set(True)
+          
+      # Restore original mode
+      if original_mode != 'OBJECT':
+          bpy.ops.object.mode_set(mode=original_mode)

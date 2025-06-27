@@ -45,6 +45,16 @@ It comes in a form of an n-toolbar menu.
 - `glTF` has cooler export options in Blender (like [Draco Malfoy](https://google.github.io/draco/) mesh compression)
 - If you need `FBX` you can probs be very 'appy with this addon instead: https://github.com/Wildergames/blender-quick-exporter
 
+## Features
+
+### TODO: Export Groups
+Currently only one .glb can be exported at the time, with a given name and selection target. It would be nice to rework it as export groups so a bunch of meshes could be exported at once.
+
+### Split mesh by `Vertex Group`
+If you create a `Vertex Group` with a name `Vertex` on any of the exported meshes, this mesh will be split into `.base` and `.vertex` versions of it. This is useful if you need to keep backfaces but do not want them to waste lightmap atlas space and instead bake some of the mesh lighting info into vertex color. (In Unity this can be done with `Bakery` plugin.)
+
+TODO: This is very situational, but it could be extended into a set-yourself vertex group setting that will split the mesh according to those groups while allowing you to work on a single mesh.
+
 ## Disclaimer
 I'm mostly a C# programmer, so this plugin was made unter chatty's (ChatGPT) guide, it was a trial and error process, I learned a bunch about python and blender scripting, so it is an altogether fun ride and I am also happy with the results and can finally abandon ProBuilder for good.
 

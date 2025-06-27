@@ -37,6 +37,7 @@ class ExportOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 def safe_export(context, message):
+    print("✨ Starting Export")
     settings = context.scene.gltf_export_settings
     settings.messages.clear() # Clear previous messages
     utils.kimjafasu_log_message(settings, message, "INFO")
@@ -112,7 +113,7 @@ def export_gltf(context, settings):
     when you're inside non-3D View editors, bpy.context.object might return 
     None, even though bpy.context.active_object still works."
     """
-    selected_objects = [obj for obj in context.selected_objects] 
+    original_selected_objects = [obj for obj in context.selected_objects] 
     active_object = bpy.context.active_object
     if active_object:
         original_mode = active_object.mode
@@ -139,13 +140,27 @@ def export_gltf(context, settings):
             for obj in export_collection.all_objects:
                 if obj.type in {'MESH', 'ARMATURE'}:
                     obj.select_set(True)
+                    
+    if len(context.selected_objects) == 0:
+      utils.logging.kimjafasu_log_message(settings, "Empty selected_objects array, can't proceed.", 'ERROR')
+      utils.kimjafasu_cleanup_after(export_target, original_selected_objects, original_mode)
+      return
     
+    # [<expression> for <variable> in <iterable> if <condition>]
+    # "For each obj in context.selected_objects, evaluate the expression obj, and add it to a list."
     objects_to_be_exported = [obj for obj in context.selected_objects]
-    split_objects, new_objects = preprocess.kimjafasu_preprocess_split_vertex_groups(bpy.context, objects_to_be_exported)
-   
+    
+    try:
+      split_objects, new_objects = preprocess.kimjafasu_preprocess_split_vertex_groups(bpy.context, objects_to_be_exported)
+    except Exception as e:
+      raise ValueError(f"Critical error in vertex group splitting process. Exception: {e}")
+      
     # Combine original and split objects
     # Convert to sets, subtract, then combine
     # Now you can create the final export list:
+    #   obj for obj → This means: for each obj in the list, include it in the new list.
+    #   in objects_to_be_exported → You're looping through each object in that original list.
+    #   if obj not in split_objects → Only include the object if it was not split by the preprocessing.
     final_objects = [obj for obj in objects_to_be_exported if obj not in split_objects] + new_objects
     print("✨")
     bpy.ops.object.select_all(action='DESELECT')
@@ -158,56 +173,63 @@ def export_gltf(context, settings):
     if final_objects:
         context.view_layer.objects.active = final_objects[0]
 
+    try:
     # 🪶 Finally export.
-    
     # A little override for procreate, everything else exported with gltf
-    if (settings.engine == 'Procreate'):
-        bpy.ops.wm.obj_export(
-            filepath=export_path,
-            check_existing=False,
-            export_selected_objects=True,
-            apply_modifiers=apply_modifiers,
-            export_triangulated_mesh=True,
-            export_object_groups=True,
-            export_materials=True,
-            forward_axis='NEGATIVE_Z',
-            up_axis='Y'
-        )
+      if (settings.engine == 'Procreate'):
+          bpy.ops.wm.obj_export(
+              filepath=export_path,
+              check_existing=False,
+              export_selected_objects=True,
+              apply_modifiers=apply_modifiers,
+              export_triangulated_mesh=True,
+              export_object_groups=True,
+              export_materials=True,
+              forward_axis='NEGATIVE_Z',
+              up_axis='Y'
+          )
+      else:
+          # https://docs.blender.org/api/current/bpy.ops.export_scene.html#bpy.ops.export_scene.gltf
+          bpy.ops.export_scene.gltf(
+              filepath=export_path,
+              # basics
+              use_selection=True,
+              export_yup=export_yup,
+              export_apply=apply_modifiers,
+              export_format=gltf_export_format,
+              # animation
+              export_skins=True,
+              export_animations=True,
+              # vertex color
+              export_vertex_color=export_vertex_color,
+              export_all_vertex_colors=True,
+              export_active_vertex_color_when_no_material=True,
+              # uvs
+              export_texcoords=True,
+              # compression
+              # requires com.unity.draco
+              # export_draco_mesh_compression_enable=True,
+              # textures
+              export_image_format='AUTO' if export_textures else 'NONE'
+          )
+    except Exception as e:
+      print("🔥 Export Exception: " + e)
     else:
-        # https://docs.blender.org/api/current/bpy.ops.export_scene.html#bpy.ops.export_scene.gltf
-        bpy.ops.export_scene.gltf(
-            filepath=export_path,
-            # basics
-            use_selection=True,
-            export_yup=export_yup,
-            export_apply=apply_modifiers,
-            export_format=gltf_export_format,
-            # animation
-            export_skins=True,
-            export_animations=True,
-            # vertex color
-            export_vertex_color=export_vertex_color,
-            export_all_vertex_colors=True,
-            export_active_vertex_color_when_no_material=True,
-            # comptession
-            # requires com.unity.draco
-            # export_draco_mesh_compression_enable=True,
-            # textures
-            export_image_format='AUTO' if export_textures else 'NONE'
-        )
-        
-    preprocess.kimjafasu_postprocess_cleanup(new_objects)
-    
-    # 🪶 Restore previous object selection
-    if export_target != 'Selection':
-        bpy.ops.object.select_all(action='DESELECT')
-        for obj in selected_objects:
-            obj.select_set(True)
-        
-    # Restore original mode
-    if original_mode != 'OBJECT':
-        bpy.ops.object.mode_set(mode=original_mode)
-    
-    utils.kimjafasu_log_message(
+      utils.kimjafasu_log_message(
       settings, 
       f"Successfuly exported {export_target} to {export_path}")
+    finally:
+      preprocess.kimjafasu_postprocess_cleanup(new_objects)
+      
+      # 🪶 Restore previous object selection
+      if export_target != 'Selection':
+          bpy.ops.object.select_all(action='DESELECT')
+          for obj in original_selected_objects:
+              obj.select_set(True)
+          
+      # Restore original mode
+      if original_mode != 'OBJECT':
+          bpy.ops.object.mode_set(mode=original_mode)
+    
+    
+    
